@@ -104,7 +104,7 @@ def process_files(src_files, dst_dir: Path, class_name: str):
     dst_dir.mkdir(parents=True, exist_ok=True)
     for tif in src_files:
         with rasterio.open(tif) as src:
-            tile      = src.read().astype(src.read(1).dtype)
+            tile      = src.read()  # Read once, preserving original dtype
             profile   = src.profile
             transform = src.transform
             nodata    = src.nodata

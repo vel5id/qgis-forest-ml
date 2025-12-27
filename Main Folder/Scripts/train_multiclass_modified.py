@@ -216,16 +216,12 @@ def main() -> None:
     proba_test = clf.predict_proba(X_test_f)
 
     def predict_with_threshold(proba, t):
-        y_pred = []
-        for p in proba:
-            # if probability of class 1 >= t, assign label 1
-            if p[0] >= t:
-                y_pred.append(1)
-            else:
-                # otherwise choose the class with highest probability among the rest
-                other = np.argmax(p[1:]) + 2  # shift because p[1:] maps to classes 2..6
-                y_pred.append(other)
-        return y_pred
+        proba = np.asarray(proba)
+        # Vectorized: find argmax among classes [2..6] for all samples
+        other_labels = np.argmax(proba[:, 1:], axis=1) + 2
+        # Apply threshold: if birch probability >= t, assign 1; otherwise use other_labels
+        y_pred = np.where(proba[:, 0] >= t, 1, other_labels)
+        return y_pred.tolist()
 
     y_test_adj = predict_with_threshold(proba_test, best_thresh)
 
