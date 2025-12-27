@@ -35,13 +35,12 @@ LEVELS = 8
 
 def predict_with_threshold(proba_block, t1=BEST_THRESH):
     """Apply threshold to birch probabilities and assign other classes by highest remaining probability."""
-    y_pred = []
-    for p in proba_block:
-        if p[0] >= t1:
-            y_pred.append(1)
-        else:
-            y_pred.append(np.argmax(p[1:]) + 2)
-    return y_pred
+    proba_block = np.asarray(proba_block)
+    # Vectorized: find argmax among classes [2..6] for all samples
+    other_labels = np.argmax(proba_block[:, 1:], axis=1) + 2
+    # Apply threshold: if birch probability >= t1, assign 1; otherwise use other_labels
+    y_pred = np.where(proba_block[:, 0] >= t1, 1, other_labels)
+    return y_pred.tolist()
 
 
 def get_cpu_temp():
@@ -111,14 +110,11 @@ def count_birch_clusters(birch_mask, patch_size):
     """Count connected birch clusters in the birch mask grid."""
     H, W = birch_mask.shape
     M, N = H // patch_size, W // patch_size
-    grid = np.zeros((M, N), dtype=np.uint8)
-    for r in range(M):
-        for c in range(N):
-            block = birch_mask[
-                r*patch_size:(r+1)*patch_size,
-                c*patch_size:(c+1)*patch_size
-            ]
-            grid[r, c] = 1 if block.max() == 1 else 0
+    # Vectorized: reshape to (M, patch_size, N, patch_size), then take max over patch dimensions
+    trimmed = birch_mask[:M * patch_size, :N * patch_size]
+    reshaped = trimmed.reshape(M, patch_size, N, patch_size)
+    grid = (reshaped.max(axis=(1, 3)) == 1).astype(np.uint8)
+
     struct = np.array([[0,1,0],[1,1,1],[0,1,0]])
     labels, n = label(grid, structure=struct)
     sizes = np.bincount(labels.ravel())[1:]
